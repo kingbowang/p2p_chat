@@ -1,0 +1,29 @@
+pluginManagement {
+    repositories {
+        maven { url "https://dl.cloudsmith.io/public/libp2p/jvm-libp2p/maven/" }
+        maven { url "https://jitpack.io" }
+        maven { url "https://artifacts.consensys.net/public/maven/maven/" }
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        maven { url "https://dl.cloudsmith.io/public/libp2p/jvm-libp2p/maven/" }
+        maven { url "https://jitpack.io" }
+        maven { url "https://artifacts.consensys.net/public/maven/maven/" }
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "P2PChat"
+include ':app'
