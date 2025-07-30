@@ -9,12 +9,15 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.pengbo.p2pchat.chat.ChatNode
 import java.util.concurrent.CompletableFuture.runAsync
 
 class P2PChatActivity : AppCompatActivity() {
     companion object {
+        private const val TAG = "P2PChatActivity"
+
         fun start(context: Context) {
             val intent = Intent(context, P2PChatActivity::class.java)
             context.startActivity(intent)
@@ -25,9 +28,11 @@ class P2PChatActivity : AppCompatActivity() {
     private lateinit var chatWindow: TextView
     private lateinit var line: EditText
     private lateinit var sendButton: Button
-    private lateinit var chatNode: ChatNode
     private lateinit var multicastLock: WifiManager.MulticastLock
     private lateinit var backButton: Button
+    private lateinit var addPeerButton: Button
+
+    private var chatNode: ChatNode? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,16 +43,18 @@ class P2PChatActivity : AppCompatActivity() {
         line = findViewById(R.id.line)
         sendButton = findViewById(R.id.send)
         backButton = findViewById(R.id.btn_back)
+        addPeerButton = findViewById(R.id.btn_add_peer)
 
         sendButton.setOnClickListener { sendText() }
         backButton.setOnClickListener { finish() }
+        addPeerButton.setOnClickListener { addPeerDialog() }
 
         runAsync {
             acquireMulticastLock()
 
             chatNode = ChatNode(::chatMessage)
             chatMessage("\nLibp2p Chatter!\n=============\n")
-            chatMessage("This node is ${chatNode.peerId}, listening on ${chatNode.address}\n")
+            chatMessage("This node is ${chatNode?.peerId}, listening on ${chatNode?.address}\n")
         }
     }
 
@@ -56,17 +63,16 @@ class P2PChatActivity : AppCompatActivity() {
         super.onDestroy()
 
         releaseMulticastLock()
-        chatNode.stop()
+        chatNode?.stop()
     }
 
     // sendText
     private fun sendText() {
-        val msg = line.text.toString().trim()
-        if (msg.isEmpty())
-            return
+        val content = line.text.toString().trim()
+        if (content.isEmpty()) return
         // send message here
-        chatNode.send(msg)
-        chatMessage("You > " + msg)
+        chatNode?.send(content)
+        chatMessage("You > $content")
         line.text.clear()
     }
 
@@ -87,5 +93,26 @@ class P2PChatActivity : AppCompatActivity() {
 
     private fun releaseMulticastLock() {
         multicastLock.release()
+    }
+
+    private fun addPeerDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_addpeer, null)
+        val ipInput = dialogView.findViewById<EditText>(R.id.et_peer_ip)
+        val portInput = dialogView.findViewById<EditText>(R.id.et_peer_port)
+        val idInput = dialogView.findViewById<EditText>(R.id.et_peer_id)
+
+        AlertDialog.Builder(this)
+            .setTitle("连接远端 Peer")
+            .setView(dialogView)
+            .setPositiveButton("连接") { _, _ ->
+                val ip = ipInput.text.toString().trim()
+                val port = portInput.text.toString().toIntOrNull() ?: 4009
+                val peerId = idInput.text.toString().trim()
+                if (ip.isNotEmpty() && peerId.isNotEmpty()) {
+                    chatNode?.addPeer(ip, port, peerId)
+                } else {
+                    chatMessage("请输入有效的 IP 和 PeerId")
+                }
+            }.setNegativeButton("取消", null).show()
     }
 }

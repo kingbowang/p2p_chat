@@ -1,87 +1,100 @@
 package com.pengbo.p2pchat.chat
 
-import io.libp2p.core.Discoverer
+import com.blankj.utilcode.util.GsonUtils
+import com.blankj.utilcode.util.LogUtils
 import io.libp2p.core.PeerId
 import io.libp2p.core.PeerInfo
 import io.libp2p.core.Stream
 import io.libp2p.core.dsl.host
-import io.libp2p.discovery.MDnsDiscovery
+import io.libp2p.core.multiformats.Multiaddr
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.NetworkInterface
+import java.util.concurrent.CompletableFuture.runAsync
 
 typealias OnMessage = (String) -> Unit
 
 class ChatNode(private val printMsg: OnMessage) {
+    companion object {
+        private const val TAG = "ChatNode"
+        private fun privateNetworkAddress(): InetAddress {
+            val interfaces = NetworkInterface.getNetworkInterfaces().toList()
+            val addresses = interfaces.flatMap { it.inetAddresses.toList() }
+                .filterIsInstance<Inet4Address>()
+                .filter { it.isSiteLocalAddress }
+                .sortedBy { it.hostAddress }
+            return if (addresses.isNotEmpty()) {
+                addresses[0]
+            } else {
+                InetAddress.getLoopbackAddress()
+            }
+        }
+    }
+
     private data class Friend(
         var name: String,
         val controller: ChatController
     )
 
-    private var currentAlias: String
     private val knownNodes = mutableSetOf<PeerId>()
-    private val peerFinder: Discoverer
     private val peers = mutableMapOf<PeerId, Friend>()
     private val privateAddress: InetAddress = privateNetworkAddress()
+    private val port = 4009
     private val chatHost = host {
         protocols {
             +Chat(::messageReceived)
         }
         network {
-            listen("/ip4/$address/tcp/0")
+            listen("/ip4/$address/tcp/$port")
         }
     }
 
     val peerId = chatHost.peerId
     val address: String
         get() {
-            return privateAddress.hostAddress
+            return privateAddress.hostAddress ?: ""
         }
 
     // init
     init {
         chatHost.start().get()
-        currentAlias = chatHost.peerId.toBase58()
-
-        peerFinder = MDnsDiscovery(chatHost, address = privateAddress)
-        peerFinder.newPeerFoundListeners += { peerFound(it) }
-        peerFinder.start()
+        chatHost.listenAddresses().forEach {
+            printMsg("> $it")
+        }
     }
 
     // send
     fun send(message: String) {
-        peers.values.forEach { it.controller.send(message) }
-
-        if (message.startsWith("alias ")) {
-            currentAlias = message.substring(6).trim()
-        }
+        val messageModel = MessageModel(
+            action = "text_msg",
+            content = message
+        )
+        peers.values.forEach { it.controller.send(GsonUtils.toJson(messageModel)) }
     }
 
     // stop
     fun stop() {
-        peerFinder.stop()
         chatHost.stop()
     }
 
     // messageReceived
     private fun messageReceived(id: PeerId, msg: String) {
-        if (msg == "/who") {
-            peers[id]?.controller?.send("alias $currentAlias")
-            return
-        }
-        if (msg.startsWith("alias ")) {
-            val friend = peers[id] ?: return
-            val previousAlias = friend.name
-            val newAlias = msg.substring(6).trim()
-            if (previousAlias != newAlias) {
-                friend.name = newAlias
-                printMsg("$previousAlias is now $newAlias")
+        val messageModel = GsonUtils.fromJson(msg, MessageModel::class.java)
+        when (messageModel.action) {
+            "/who" -> {
+                runAsync {
+                    addPeer(messageModel.ip, messageModel.port, id.toString())
+                }
             }
-            return
-        }
 
-        val alias = peers[id]?.name ?: id.toBase58()
-        printMsg("$alias > $msg")
+            "text_msg" -> {
+                printMsg("${id.toBase58()} > ${messageModel.content}")
+            }
+
+            else -> {
+                return
+            }
+        }
     }
 
     // peerFound
@@ -102,7 +115,8 @@ class ChatNode(private val printMsg: OnMessage) {
             knownNodes.remove(info.peerId)
         }
         printMsg("Connected to new peer ${info.peerId}")
-        chatConnection.second.send("/who")
+        val messageModel = MessageModel(action = "/who", ip = address, port = port)
+        chatConnection.second.send(GsonUtils.toJson(messageModel))
         peers[info.peerId] = Friend(
             info.peerId.toBase58(),
             chatConnection.second
@@ -122,22 +136,22 @@ class ChatNode(private val printMsg: OnMessage) {
                 chat.controller.get()
             )
         } catch (e: Exception) {
+            LogUtils.eTag(TAG, e.message)
+            e.message?.let { printMsg(it) }
             return null
         }
     }
 
-    companion object {
-        private fun privateNetworkAddress(): InetAddress {
-            val interfaces = NetworkInterface.getNetworkInterfaces().toList()
-            val addresses = interfaces.flatMap { it.inetAddresses.toList() }
-                .filterIsInstance<Inet4Address>()
-                .filter { it.isSiteLocalAddress }
-                .sortedBy { it.hostAddress }
-            return if (addresses.isNotEmpty()) {
-                addresses[0]
-            } else {
-                InetAddress.getLoopbackAddress()
-            }
+    fun addPeer(ip: String, port: Int, peerIdStr: String) {
+        try {
+            val peerId = PeerId.fromBase58(peerIdStr)
+            val address = Multiaddr("/ip4/$ip/tcp/$port/p2p/$peerId")
+            val peerInfo = PeerInfo(peerId, listOf(address))
+            peerFound(peerInfo)
+        } catch (e: Exception) {
+            LogUtils.eTag(TAG, e.message)
+            e.message?.let { printMsg(it) }
+            e.printStackTrace()
         }
     }
 }

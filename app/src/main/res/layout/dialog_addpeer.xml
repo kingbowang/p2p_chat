@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <EditText
+        android:id="@+id/et_peer_ip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="远端 IP 地址"
+        android:inputType="text" />
+
+    <EditText
+        android:id="@+id/et_peer_port"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="端口号（默认4009）"
+        android:inputType="number" />
+
+    <EditText
+        android:id="@+id/et_peer_id"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="PeerId"
+        android:inputType="text" />
+</LinearLayout>

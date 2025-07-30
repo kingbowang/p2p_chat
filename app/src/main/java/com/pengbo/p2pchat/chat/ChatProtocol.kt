@@ -1,5 +1,6 @@
 package com.pengbo.p2pchat.chat
 
+import com.blankj.utilcode.util.LogUtils
 import io.libp2p.core.PeerId
 import io.libp2p.core.Stream
 import io.libp2p.core.multistream.ProtocolId
@@ -19,7 +20,7 @@ typealias OnChatMessage = (PeerId, String) -> Unit
 
 class Chat(chatCallback: OnChatMessage) : ChatBinding(ChatProtocol(chatCallback))
 
-const val PROTOCOL_ID: ProtocolId = "/example/chat/0.1.0"
+const val PROTOCOL_ID: ProtocolId = "/pengbo/p2p_chat/0.1.0"
 
 open class ChatBinding(echo: ChatProtocol) :
     StrictProtocolBinding<ChatController>(PROTOCOL_ID, echo)
@@ -27,6 +28,10 @@ open class ChatBinding(echo: ChatProtocol) :
 open class ChatProtocol(
     private val chatCallback: OnChatMessage
 ) : ProtocolHandler<ChatController>(Long.MAX_VALUE, Long.MAX_VALUE) {
+
+    companion object {
+        private const val TAG = "ChatProtocol"
+    }
 
     override fun onStartInitiator(stream: Stream) = onStart(stream)
     override fun onStartResponder(stream: Stream) = onStart(stream)
@@ -45,16 +50,19 @@ open class ChatProtocol(
         lateinit var stream: Stream
 
         override fun onActivated(stream: Stream) {
+            LogUtils.dTag(TAG, "onActivated")
             this.stream = stream
             ready.complete(null)
         }
 
         override fun onMessage(stream: Stream, msg: ByteBuf) {
             val msgStr = msg.toString(Charset.defaultCharset())
+            LogUtils.dTag(TAG, "onMessage: $msgStr")
             chatCallback(stream.remotePeerId(), msgStr)
         }
 
         override fun send(message: String) {
+            LogUtils.dTag(TAG, "send: $message")
             val data = message.toByteArray(Charset.defaultCharset())
             stream.writeAndFlush(data.toByteBuf())
         }
