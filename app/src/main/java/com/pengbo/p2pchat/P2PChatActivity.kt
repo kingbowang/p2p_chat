@@ -99,7 +99,7 @@ class P2PChatActivity : AppCompatActivity() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_addpeer, null)
         val ipInput = dialogView.findViewById<EditText>(R.id.et_peer_ip)
         val portInput = dialogView.findViewById<EditText>(R.id.et_peer_port)
-        val idInput = dialogView.findViewById<EditText>(R.id.et_peer_id)
+        val phoneNumberInput = dialogView.findViewById<EditText>(R.id.et_phone_number)
 
         AlertDialog.Builder(this)
             .setTitle("连接远端 Peer")
@@ -107,11 +107,11 @@ class P2PChatActivity : AppCompatActivity() {
             .setPositiveButton("连接") { _, _ ->
                 val ip = ipInput.text.toString().trim()
                 val port = portInput.text.toString().toIntOrNull() ?: 4009
-                val peerId = idInput.text.toString().trim()
-                if (ip.isNotEmpty() && peerId.isNotEmpty()) {
-                    chatNode?.addPeer(ip, port, peerId)
+                val phoneNumber = phoneNumberInput.text.toString().trim()
+                if (ip.isNotEmpty() && phoneNumber.isNotEmpty()) {
+                    chatNode?.addPeerByNumber(ip, port, phoneNumber)
                 } else {
-                    chatMessage("请输入有效的 IP 和 PeerId")
+                    chatMessage("请输入有效的 IP 和 号码")
                 }
             }.setNegativeButton("取消", null).show()
     }

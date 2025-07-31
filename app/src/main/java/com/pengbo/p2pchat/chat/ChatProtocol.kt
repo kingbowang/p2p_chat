@@ -45,9 +45,9 @@ open class ChatProtocol(
 
     open inner class Chatter(
         private val chatCallback: OnChatMessage,
-        val ready: CompletableFuture<Void>
+        private val ready: CompletableFuture<Void>
     ) : ProtocolMessageHandler<ByteBuf>, ChatController {
-        lateinit var stream: Stream
+        private lateinit var stream: Stream
 
         override fun onActivated(stream: Stream) {
             LogUtils.dTag(TAG, "onActivated")

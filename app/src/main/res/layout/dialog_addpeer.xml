@@ -16,13 +16,15 @@
         android:id="@+id/et_peer_port"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:text="4009"
         android:hint="端口号（默认4009）"
         android:inputType="number" />
 
     <EditText
-        android:id="@+id/et_peer_id"
+        android:id="@+id/et_phone_number"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="PeerId"
+        android:text="17358459337"
+        android:hint="手机号码"
         android:inputType="text" />
 </LinearLayout>
