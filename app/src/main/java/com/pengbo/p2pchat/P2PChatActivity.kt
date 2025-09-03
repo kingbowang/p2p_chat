@@ -9,7 +9,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ScrollView
 import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.pengbo.p2pchat.chat.ChatNode
 import java.util.concurrent.CompletableFuture.runAsync
@@ -47,7 +46,7 @@ class P2PChatActivity : AppCompatActivity() {
 
         sendButton.setOnClickListener { sendText() }
         backButton.setOnClickListener { finish() }
-        addPeerButton.setOnClickListener { addPeerDialog() }
+        addPeerButton.setOnClickListener { }
 
         runAsync {
             acquireMulticastLock()
@@ -58,32 +57,33 @@ class P2PChatActivity : AppCompatActivity() {
         }
     }
 
-    // onDestroy
     override fun onDestroy() {
         super.onDestroy()
 
         releaseMulticastLock()
         chatNode?.stop()
-    }
+    } // onDestroy
 
-    // sendText
     private fun sendText() {
-        val content = line.text.toString().trim()
-        if (content.isEmpty()) return
-        // send message here
-        chatNode?.send(content)
-        chatMessage("You > $content")
-        line.text.clear()
-    }
+        val msg = line.text.toString().trim()
+        if (msg.isEmpty())
+            return
 
-    // chatMessage
+        // send message here
+        chatNode?.send(msg)
+
+        chatMessage("You > " + msg)
+
+        line.text.clear()
+    } // sendText
+
     private fun chatMessage(msg: String) {
         runOnUiThread {
             chatWindow.append(msg)
             chatWindow.append("\n")
             chatScroller.post { chatScroller.fullScroll(View.FOCUS_DOWN) }
         }
-    }
+    } // chatMessage
 
     private fun acquireMulticastLock() {
         val wifi = getSystemService(WIFI_SERVICE) as WifiManager
@@ -93,26 +93,5 @@ class P2PChatActivity : AppCompatActivity() {
 
     private fun releaseMulticastLock() {
         multicastLock.release()
-    }
-
-    private fun addPeerDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_addpeer, null)
-        val ipInput = dialogView.findViewById<EditText>(R.id.et_peer_ip)
-        val portInput = dialogView.findViewById<EditText>(R.id.et_peer_port)
-        val phoneNumberInput = dialogView.findViewById<EditText>(R.id.et_phone_number)
-
-        AlertDialog.Builder(this)
-            .setTitle("连接远端 Peer")
-            .setView(dialogView)
-            .setPositiveButton("连接") { _, _ ->
-                val ip = ipInput.text.toString().trim()
-                val port = portInput.text.toString().toIntOrNull() ?: 4009
-                val phoneNumber = phoneNumberInput.text.toString().trim()
-                if (ip.isNotEmpty() && phoneNumber.isNotEmpty()) {
-                    chatNode?.addPeerByNumber(ip, port, phoneNumber)
-                } else {
-                    chatMessage("请输入有效的 IP 和 号码")
-                }
-            }.setNegativeButton("取消", null).show()
     }
 }
